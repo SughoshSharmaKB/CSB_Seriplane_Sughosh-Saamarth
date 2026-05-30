@@ -1,0 +1,5 @@
+Image_Name,Cleanliness_supermajor,Cleanliness_minor,Cleanliness_major,Neatness_neatness,Neatness_Grade,Total_Defects
+1_1.jpeg,0,0,0,4,90,4
+2_2.jpeg,0,0,0,7,80,7
+2_1.jpeg,0,0,0,5,90,5
+1_2.jpeg,0,1,0,5,90,6

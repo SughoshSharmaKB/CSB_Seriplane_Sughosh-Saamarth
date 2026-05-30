@@ -1,0 +1,5 @@
+Image,Mean_Brightness,Mode_Brightness,Mean_v1_Count,Mean_v2_Count,Mean_v3_Count,Mean_Total_Defects,Mode_v1_Count,Mode_v2_Count,Mode_v3_Count,Mode_Total_Defects
+1_1.jpeg,67.97488236416473,75.0,0,0,0,0,0,0,1,1
+1_2.jpeg,70.52344735435597,73.0,0,0,0,0,2,0,0,2
+2_1.jpeg,72.8309375,73.0,0,0,0,0,0,0,0,0
+2_2.jpeg,74.66787878787879,77.0,0,0,0,0,0,0,0,0

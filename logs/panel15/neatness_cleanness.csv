@@ -1,0 +1,5 @@
+Timestamp,Image_Name,Cleanliness_minor,Cleanliness_supermajor,Cleanliness_major,Neatness_neatness,Neatness_Grade,Total_Defects,Output_Image_Path
+2026-02-12 09:30:48,1_1.jpeg,0,0,0,1,90,1,/Users/nagaprasadnaik/Documents/csb/seriplane/results/neatness/1_1.jpeg
+2026-02-12 09:30:48,2_2.jpeg,0,0,0,7,80,7,/Users/nagaprasadnaik/Documents/csb/seriplane/results/neatness/2_2.jpeg
+2026-02-12 09:30:49,2_1.jpeg,0,0,0,4,90,4,/Users/nagaprasadnaik/Documents/csb/seriplane/results/neatness/2_1.jpeg
+2026-02-12 09:30:49,1_2.jpeg,0,0,0,3,90,3,/Users/nagaprasadnaik/Documents/csb/seriplane/results/neatness/1_2.jpeg

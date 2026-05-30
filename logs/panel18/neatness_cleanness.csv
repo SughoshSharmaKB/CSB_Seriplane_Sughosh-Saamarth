@@ -1,0 +1,10 @@
+Image_Name,Cleanliness_minor,Cleanliness_major,Cleanliness_supermajor,Neatness_neatness,Neatness_Grade,Total_Defects
+1_1.jpeg,0,0,0,2,90,2
+panel11_6_1_1.png,1,0,0,2,90,3
+panel11_5_1_1.png,0,0,0,10,80,10
+2_1.jpeg,0,0,0,4,90,4
+panel11_1_1_1.png,0,0,0,4,90,4
+panel11_3_1_1.png,0,0,0,1,90,1
+panel11_1_4_1.png,0,0,0,4,90,4
+panel11_2_1_1.png,0,0,0,0,100,0
+1_2.jpeg,0,0,0,0,100,0

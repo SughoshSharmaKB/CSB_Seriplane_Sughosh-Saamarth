@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Seriplane Test Results</title>
+    <link rel="stylesheet" href="static\style.css">
+</head>
+<body>
+
+    <div class="window">
+        <div class="title-bar title-layout">
+        <span class="title-text">CSB Seriplane Test</span>
+        <img src="static\csb.png" class="csb-logo" alt="CSB Logo">
+    </div>
+
+    <div class="tabs">
+        <button id="btnEvenness" onclick="loadCSV('evenness')">Evenness</button>
+        <button id="btnNeatness" onclick="loadCSV('neatness')">Neatness & Cleanness</button>
+        <button id="btnExecute" onclick="executePipeline()">Execute</button>
+        <button id="btnHome" onclick="goHome()">Home</button>
+        <button id="btnPrint" onclick="printTable()">Print</button>
+        <button id="btnGenerate"  onclick="generateLogs()">Generate</button> <!-- onclick="printTable()"-->  
+    </div>
+
+
+
+    <div class="content">
+        <table id="csvTable">
+            <thead></thead>
+            <tbody></tbody>
+        </table>
+
+
+    </div>
+
+</div>
+
+<script src="static\app.js"></script>
+</body>
+</html>
