@@ -4,6 +4,10 @@ let evennessData = null;
 let neatnessData = null;
 let currentView = null;
 
+// ── Generate report live-editing state ────────────────────────
+let generateState = { evennessResults: [], neatnessResults: null, data: null };
+let editState     = { cell: null, panel: null, field: null, originalValue: null, newValue: null };
+
 const HIDE_KEYWORDS = ["time", "date", "path", "output_image_path"];
 
 // ================= EXECUTE PIPELINE =================
@@ -595,9 +599,17 @@ function renderGenerateReport(data) {
 
     const evennessResults = computeEvenness(data.evenness, data.neatness);
     const neatnessResults = computeNeatness(data.neatness);
-    const COLS = 9;
 
-    // Title row
+    // Store in module-level state so live edits can recalculate
+    generateState.evennessResults = evennessResults;
+    generateState.neatnessResults = neatnessResults;
+    generateState.data            = data;
+
+    const COLS        = 9;
+    const FIELD_NAMES = ["Panel","EV1","EV2","EV3","EV Total","Super Major","Major","Minor","Neatness Avg"];
+    const EDITABLE    = new Set(["EV1","EV2","EV3","Super Major","Major","Minor"]);
+
+    // ── Title row ──────────────────────────────────────────────
     const titleRow = document.createElement("tr");
     const titleTd  = document.createElement("td");
     titleTd.colSpan = COLS;
@@ -606,48 +618,92 @@ function renderGenerateReport(data) {
     titleRow.appendChild(titleTd);
     tbody.appendChild(titleRow);
 
-    // Header
+    // ── Header row ─────────────────────────────────────────────
     const evHead = document.createElement("tr");
-    ["Panel","EV1","EV2","EV3","EV Total","Super Major","Major","Minor","Neatness Avg"].forEach(h => {
+    FIELD_NAMES.forEach(h => {
         const th = document.createElement("th");
         th.textContent = h;
         th.style.cssText = "background:#eef4ff;text-align:center;padding:4px 6px;";
+        if (EDITABLE.has(h)) {
+            th.title = "Click any cell in this column to edit";
+            th.style.borderBottom = "2px solid #1a3a6b";
+        }
         evHead.appendChild(th);
     });
     thead.appendChild(evHead);
 
-    let totalV1=0,totalV2=0,totalV3=0,totalSM=0,totalMaj=0,totalMin=0;
+    // ── Data rows ──────────────────────────────────────────────
+    let totalV1=0, totalV2=0, totalV3=0, totalSM=0, totalMaj=0, totalMin=0;
+
     evennessResults.forEach(row => {
         const tr = document.createElement("tr");
-        totalV1+=row.v1; totalV2+=row.v2; totalV3+=row.v3;
-        totalSM+=row.supermajor; totalMaj+=row.major; totalMin+=row.minor;
-        [row.panel,row.v1,row.v2,row.v3,row.v1+row.v2+row.v3,row.supermajor,row.major,row.minor,row.neatAvg].forEach(val => {
-            const td = document.createElement("td");
-            td.textContent = typeof val==="number" ? val.toFixed(0) : val;
+        totalV1 += row.v1; totalV2 += row.v2; totalV3 += row.v3;
+        totalSM += row.supermajor; totalMaj += row.major; totalMin += row.minor;
+
+        const values = [
+            row.panel,
+            row.v1,
+            row.v2,
+            row.v3,
+            row.v1 + row.v2 + row.v3,
+            row.supermajor,
+            row.major,
+            row.minor,
+            row.neatAvg
+        ];
+
+        values.forEach((val, colIdx) => {
+            const td        = document.createElement("td");
+            const fieldName = FIELD_NAMES[colIdx];
+            const displayVal = (typeof val === "number") ? val.toFixed(0) : val;
+            td.textContent   = displayVal;
             td.style.textAlign = "center";
+
+            if (colIdx === 0) {
+                // Panel name — clickable for image preview
+                td.classList.add("panel-link");
+                td.title = "Click to view panel images";
+                td.addEventListener("click", () => openPanelImages(row.panel));
+
+            } else if (EDITABLE.has(fieldName)) {
+                // Editable numeric cell
+                makeEditableCell(td, row.panel, fieldName, parseFloat(displayVal) || 0);
+
+            } else if (fieldName === "EV Total") {
+                // Auto-calculated from EV1+EV2+EV3; not directly editable
+                td.dataset.panel = row.panel;
+                td.dataset.field = "EV Total";
+                td.style.background = "#f8f8f8";
+                td.title = "Auto-calculated: EV1 + EV2 + EV3";
+            }
+
             tr.appendChild(td);
         });
+
         tbody.appendChild(tr);
     });
 
-    // Total row
+    // ── Total row ──────────────────────────────────────────────
     const evTotalRow = document.createElement("tr");
     evTotalRow.style.fontWeight = "bold";
-    ["Total",totalV1,totalV2,totalV3,totalV1+totalV2+totalV3,totalSM,totalMaj,totalMin,"—"].forEach(val => {
+    const totalVals = ["Total",totalV1,totalV2,totalV3,totalV1+totalV2+totalV3,totalSM,totalMaj,totalMin,"—"];
+    const totalIDs  = [null,"genTotalV1","genTotalV2","genTotalV3","genTotalEV","genTotalSM","genTotalMaj","genTotalMin",null];
+    totalVals.forEach((val, i) => {
         const td = document.createElement("td");
-        td.textContent = typeof val==="number" ? val.toFixed(0) : val;
+        td.textContent = (typeof val === "number") ? val.toFixed(0) : val;
         td.style.cssText = "background:#dce8ff;text-align:center;";
+        if (totalIDs[i]) td.id = totalIDs[i];
         evTotalRow.appendChild(td);
     });
     tbody.appendChild(evTotalRow);
 
-    // Gap
+    // ── Gap ────────────────────────────────────────────────────
     const gap = document.createElement("tr");
     const gapTd = document.createElement("td");
     gapTd.colSpan = COLS; gapTd.style.padding = "10px";
     gap.appendChild(gapTd); tbody.appendChild(gap);
 
-    // Summary header
+    // ── Summary header ─────────────────────────────────────────
     const neatLabelRow = document.createElement("tr");
     const neatLabelTd  = document.createElement("td");
     neatLabelTd.colSpan = COLS;
@@ -655,30 +711,33 @@ function renderGenerateReport(data) {
     neatLabelTd.style.cssText = "font-weight:bold;background:#d4f4dd;padding:6px;text-align:center;";
     neatLabelRow.appendChild(neatLabelTd); tbody.appendChild(neatLabelRow);
 
-    const summaryRows = [
-        ["Total EV1",       totalV1.toFixed(0)],
-        ["Total EV2",       totalV2.toFixed(0)],
-        ["Total EV3",       totalV3.toFixed(0)],
-        ["Total EV",        (totalV1+totalV2+totalV3).toFixed(0)],
-        ["Super Major Defects", neatnessResults.supermajorTotal.toFixed(0)],
-        ["Major Defects",       neatnessResults.majorTotal.toFixed(0)],
-        ["Minor Defects",       neatnessResults.minorTotal.toFixed(0)],
-        ["Cleanliness %",       neatnessResults.cleanlinessPercent.toFixed(2)+" %"],
-        ["Neatness %",          neatnessResults.neatnessPercent.toFixed(2)+" %"],
+    // [label, initialValue, elementId-for-live-update]
+    const summaryDefs = [
+        ["Total EV1",            totalV1.toFixed(0),                              "sumEV1"],
+        ["Total EV2",            totalV2.toFixed(0),                              "sumEV2"],
+        ["Total EV3",            totalV3.toFixed(0),                              "sumEV3"],
+        ["Total EV",             (totalV1+totalV2+totalV3).toFixed(0),            "sumEV" ],
+        ["Super Major Defects",  neatnessResults.supermajorTotal.toFixed(0),      "sumSM" ],
+        ["Major Defects",        neatnessResults.majorTotal.toFixed(0),           "sumMaj"],
+        ["Minor Defects",        neatnessResults.minorTotal.toFixed(0),           "sumMin"],
+        ["Cleanliness %",        neatnessResults.cleanlinessPercent.toFixed(2)+" %", "sumClean"],
+        ["Neatness %",           neatnessResults.neatnessPercent.toFixed(2)+" %",  null],
         [`Low Neatness % (bottom ${neatnessResults.bottomCount} of ${neatnessResults.totalEntries} entries)`,
-                                neatnessResults.lowNeatnessPercent.toFixed(2)+" %"]
+                                 neatnessResults.lowNeatnessPercent.toFixed(2)+" %", null]
     ];
 
-    summaryRows.forEach(([label, value]) => {
+    summaryDefs.forEach(([label, value, id]) => {
         const tr = document.createElement("tr");
         const tdLabel = document.createElement("td");
         tdLabel.textContent = label; tdLabel.colSpan = COLS-1; tdLabel.style.fontWeight = "bold";
         const tdVal = document.createElement("td");
-        tdVal.textContent = value; tdVal.style.cssText = "font-weight:bold;color:#1a5c2a;text-align:center;";
+        tdVal.textContent = value;
+        tdVal.style.cssText = "font-weight:bold;color:#1a5c2a;text-align:center;";
+        if (id) tdVal.id = id;
         tr.appendChild(tdLabel); tr.appendChild(tdVal); tbody.appendChild(tr);
     });
 
-    // Print button
+    // ── Print button ───────────────────────────────────────────
     const existing = document.getElementById("generatePrintBtn");
     if (existing) existing.remove();
     const printBtn = document.createElement("button");
@@ -690,6 +749,243 @@ function renderGenerateReport(data) {
 
     showStatus("Report generated.");
 }
+
+
+// ================= GENERATE EDIT HELPERS =================
+
+function initModals() {
+    // ── Edit confirmation modal ─────────────────────────────
+    if (!document.getElementById("editConfirmModal")) {
+        const m = document.createElement("div");
+        m.id = "editConfirmModal";
+        m.innerHTML = `
+            <div>
+                <div style="background:#000080;color:#fff;padding:4px 10px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;">
+                    <span>&#128190; Save Change</span>
+                    <button id="editConfirmClose" style="background:none;border:1px solid #aaa;color:#fff;cursor:pointer;padding:1px 7px;font-size:11px;font-family:inherit;">&#10005;</button>
+                </div>
+                <div style="padding:16px 20px;">
+                    <div id="editConfirmMsg" style="margin-bottom:18px;font-size:13px;line-height:1.6;"></div>
+                    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                        <button id="editConfirmCSV"    style="padding:5px 14px;border:2px outset #fff;background:#D3D3D3;cursor:pointer;font-family:inherit;font-size:12px;font-weight:bold;">&#128190; Save to CSV</button>
+                        <button id="editConfirmWindow" style="padding:5px 14px;border:2px outset #fff;background:#D3D3D3;cursor:pointer;font-family:inherit;font-size:12px;font-weight:bold;">&#128421; Window Only</button>
+                        <button id="editConfirmCancel" style="padding:5px 14px;border:2px outset #fff;background:#D3D3D3;cursor:pointer;font-family:inherit;font-size:12px;">&#10005; Cancel</button>
+                    </div>
+                </div>
+            </div>`;
+        m.addEventListener("click", e => { if (e.target === m) cancelEdit(); });
+        document.body.appendChild(m);
+        document.getElementById("editConfirmClose").onclick  = cancelEdit;
+        document.getElementById("editConfirmCancel").onclick = cancelEdit;
+    }
+
+    // ── Image preview modal ─────────────────────────────────
+    if (!document.getElementById("imageModal")) {
+        const m = document.createElement("div");
+        m.id = "imageModal";
+        m.innerHTML = `
+            <div>
+                <div style="background:#000080;color:#fff;padding:4px 10px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;">
+                    <span id="imageModalTitle">Panel Images</span>
+                    <button onclick="closeImageModal()" style="background:none;border:1px solid #aaa;color:#fff;cursor:pointer;padding:1px 7px;font-size:11px;font-family:inherit;">&#10005; Close</button>
+                </div>
+                <div style="padding:10px;">
+                    <div id="imageModalContent" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;max-height:78vh;overflow:auto;padding:4px;"></div>
+                </div>
+            </div>`;
+        m.addEventListener("click", e => { if (e.target === m) closeImageModal(); });
+        document.body.appendChild(m);
+    }
+}
+
+
+function makeEditableCell(td, panel, fieldName, numericValue) {
+    td.contentEditable = "true";
+    td.spellcheck      = false;
+    td.classList.add("editable-cell");
+    td.dataset.panel         = panel;
+    td.dataset.field         = fieldName;
+    td.dataset.originalValue = String(numericValue);
+
+    td.addEventListener("focus", () => {
+        td.dataset.originalValue = td.textContent.trim();
+    });
+
+    td.addEventListener("keydown", e => {
+        if (e.key === "Enter")  { e.preventDefault(); td.blur(); }
+        if (e.key === "Escape") { td.textContent = td.dataset.originalValue; td.blur(); }
+    });
+
+    td.addEventListener("blur", () => {
+        const orig   = parseFloat(td.dataset.originalValue) || 0;
+        const newVal = parseFloat(td.textContent.trim());
+        if (isNaN(newVal)) { td.textContent = String(Math.round(orig)); return; }
+        if (Math.abs(newVal - orig) < 0.001) return;   // no real change
+
+        editState = {
+            cell: td, panel: td.dataset.panel, field: td.dataset.field,
+            originalValue: orig, newValue: newVal
+        };
+        showEditConfirmModal(td.dataset.panel, td.dataset.field, orig, newVal);
+    });
+}
+
+
+function showEditConfirmModal(panel, field, oldVal, newVal) {
+    const modal = document.getElementById("editConfirmModal");
+    document.getElementById("editConfirmMsg").innerHTML =
+        `<strong>${panel}</strong> &mdash; <strong>${field}</strong><br>` +
+        `Old: <span style="color:#a00;">${Math.round(oldVal)}</span> &nbsp;&rarr;&nbsp; ` +
+        `New: <span style="color:#060;font-weight:bold;">${Math.round(newVal)}</span><br><br>` +
+        `Where should this change be applied?`;
+    modal.style.display = "flex";
+    document.getElementById("editConfirmCSV").onclick    = () => applyEdit(true);
+    document.getElementById("editConfirmWindow").onclick = () => applyEdit(false);
+}
+
+
+function cancelEdit() {
+    if (editState.cell) {
+        editState.cell.textContent           = String(Math.round(editState.originalValue));
+        editState.cell.dataset.originalValue = String(editState.originalValue);
+    }
+    document.getElementById("editConfirmModal").style.display = "none";
+    editState = { cell: null, panel: null, field: null, originalValue: null, newValue: null };
+}
+
+
+function applyEdit(saveToCSV) {
+    const { cell, panel, field, originalValue, newValue } = editState;
+    document.getElementById("editConfirmModal").style.display = "none";
+
+    // Confirm the cell display
+    cell.textContent           = Math.round(newValue).toFixed(0);
+    cell.dataset.originalValue = String(newValue);
+
+    // Update generateState so recalculation is correct
+    const row = generateState.evennessResults.find(r => r.panel === panel);
+    if (row) {
+        if      (field === "EV1")        row.v1        = newValue;
+        else if (field === "EV2")        row.v2        = newValue;
+        else if (field === "EV3")        row.v3        = newValue;
+        else if (field === "Super Major") row.supermajor = newValue;
+        else if (field === "Major")      row.major     = newValue;
+        else if (field === "Minor")      row.minor     = newValue;
+
+        // Auto-update EV Total cell for this row
+        const evTotalCell = document.querySelector(`[data-panel="${panel}"][data-field="EV Total"]`);
+        if (evTotalCell) evTotalCell.textContent = (row.v1 + row.v2 + row.v3).toFixed(0);
+    }
+
+    // Refresh the Total row and Summary section
+    updateTotalsAndSummary();
+
+    if (saveToCSV) {
+        fetch("/update-panel-csv", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ panel, field, value: newValue, oldValue: originalValue })
+        })
+        .then(res => res.json())
+        .then(resp => {
+            if (resp.error) showStatus("\u274C CSV update failed: " + resp.error);
+            else            showStatus(`\u2705 ${panel} \u2014 ${field} saved to CSV`);
+        })
+        .catch(err => showStatus("\u274C CSV update error: " + err.message));
+    } else {
+        showStatus(`\u2705 ${panel} \u2014 ${field} updated (window only)`);
+    }
+
+    editState = { cell: null, panel: null, field: null, originalValue: null, newValue: null };
+}
+
+
+function updateTotalsAndSummary() {
+    const results = generateState.evennessResults;
+    let tV1=0, tV2=0, tV3=0, tSM=0, tMaj=0, tMin=0;
+    results.forEach(r => {
+        tV1 += r.v1; tV2 += r.v2; tV3 += r.v3;
+        tSM += r.supermajor; tMaj += r.major; tMin += r.minor;
+    });
+
+    const set = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = (typeof val === "number") ? val.toFixed(0) : val;
+    };
+
+    // Totals row
+    set("genTotalV1",  tV1);
+    set("genTotalV2",  tV2);
+    set("genTotalV3",  tV3);
+    set("genTotalEV",  tV1 + tV2 + tV3);
+    set("genTotalSM",  tSM);
+    set("genTotalMaj", tMaj);
+    set("genTotalMin", tMin);
+
+    // Summary section
+    set("sumEV1",  tV1);
+    set("sumEV2",  tV2);
+    set("sumEV3",  tV3);
+    set("sumEV",   tV1 + tV2 + tV3);
+    set("sumSM",   tSM);
+    set("sumMaj",  tMaj);
+    set("sumMin",  tMin);
+
+    const error = tSM * 1.0 + tMaj * 0.4 + tMin * 0.1;
+    const cpEl  = document.getElementById("sumClean");
+    if (cpEl) cpEl.textContent = (100 - error).toFixed(2) + " %";
+}
+
+
+// ================= PANEL IMAGE POPUP =================
+
+function openPanelImages(panel) {
+    initModals();
+    const modal   = document.getElementById("imageModal");
+    const title   = document.getElementById("imageModalTitle");
+    const content = document.getElementById("imageModalContent");
+
+    title.textContent    = `${panel} \u2014 Images`;
+    content.innerHTML    = `<div style="padding:20px;text-align:center;color:#555;grid-column:1/-1;">Loading images\u2026</div>`;
+    modal.style.display  = "block";
+
+    fetch(`/panel-images/${panel}`)
+        .then(res => res.json())
+        .then(resp => {
+            content.innerHTML = "";
+            if (resp.error || !resp.images || resp.images.length === 0) {
+                content.innerHTML = `
+                    <div style="padding:24px;text-align:center;color:#666;grid-column:1/-1;">
+                        <div style="font-size:32px;margin-bottom:8px;">&#128247;</div>
+                        <strong>No images available for ${panel}.</strong><br>
+                        <span style="font-size:11px;">Images are captured and stored when the pipeline runs.</span>
+                    </div>`;
+                return;
+            }
+            resp.images.forEach(img => {
+                const card = document.createElement("div");
+                card.style.cssText = "border:2px inset #fff;background:#fff;padding:4px;";
+                card.innerHTML = `
+                    <div style="font-size:10px;color:#000080;padding:2px 4px;background:#eee;border-bottom:1px solid #aaa;margin-bottom:4px;font-weight:bold;">
+                        &#128193; ${img.folder} / ${img.filename}
+                    </div>
+                    <img src="/panel-image/${panel}/${img.folder}/${encodeURIComponent(img.filename)}"
+                         style="width:100%;height:auto;display:block;"
+                         alt="${img.filename}" loading="lazy">`;
+                content.appendChild(card);
+            });
+        })
+        .catch(err => {
+            content.innerHTML = `<div style="padding:20px;text-align:center;color:#c00;grid-column:1/-1;">&#9888; Error: ${err.message}</div>`;
+        });
+}
+
+
+function closeImageModal() {
+    const m = document.getElementById("imageModal");
+    if (m) m.style.display = "none";
+}
+
 
 
 // ================= LOAD CSV =================
@@ -825,3 +1121,4 @@ setButtons({
 
 clearTable();
 renderZeroTable();
+initModals();

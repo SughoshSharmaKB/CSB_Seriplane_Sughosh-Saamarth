@@ -312,3 +312,88 @@ thead tr:first-child th.section-header {
 #csvTable tbody tr:not(.total-row):not(.section-header-row):not(.sub-header-row):nth-child(even) {
     background-color: #f9f9f9;
 }
+
+
+/* ================= GENERATE — EDITABLE CELLS ================= */
+
+.editable-cell {
+    cursor: text;
+    border-bottom: 2px dashed #1a3a6b !important;
+    background-color: #fffff0 !important;
+    outline: none;
+    min-width: 40px;
+    transition: background-color 0.1s;
+}
+
+.editable-cell:hover {
+    background-color: #fffacd !important;
+}
+
+.editable-cell:focus {
+    background-color: #daeeff !important;
+    border-bottom: 2px solid #0047ab !important;
+    outline: none;
+    box-shadow: inset 0 0 0 1px #0047ab;
+}
+
+
+/* ================= GENERATE — PANEL NAME LINK ================= */
+
+.panel-link {
+    cursor: pointer;
+    color: #000080;
+    text-decoration: underline dotted;
+    font-weight: bold;
+    user-select: none;
+}
+
+.panel-link:hover {
+    background-color: #dce8ff !important;
+    text-decoration: underline;
+    color: #0000cc;
+}
+
+
+/* ================= EDIT CONFIRM MODAL ================= */
+
+#editConfirmModal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.45);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+}
+
+#editConfirmModal > div {
+    background: #C0C0C0;
+    border: 3px outset #ffffff;
+    min-width: 300px;
+    max-width: 430px;
+    font-family: "Courier New", monospace;
+    box-shadow: 4px 4px 12px rgba(0,0,0,0.5);
+}
+
+
+/* ================= IMAGE POPUP MODAL ================= */
+
+#imageModal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.72);
+    z-index: 2000;
+    overflow: auto;
+}
+
+#imageModal > div {
+    background: #C0C0C0;
+    border: 3px outset #ffffff;
+    margin: 30px auto;
+    max-width: 92%;
+    font-family: "Courier New", monospace;
+    box-shadow: 6px 6px 20px rgba(0,0,0,0.6);
+}

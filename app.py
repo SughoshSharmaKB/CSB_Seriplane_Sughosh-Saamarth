@@ -299,6 +299,115 @@ def generate():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/panel-images/<panel>")
+def panel_images(panel):
+    """Return a JSON list of images available for a given panel."""
+    if not re.match(r'^panel\d+$', panel, re.IGNORECASE):
+        return jsonify({"error": "Invalid panel name"}), 400
+
+    panel_path = os.path.join(LOGS_DIR, panel)
+    if not os.path.isdir(panel_path):
+        return jsonify({"error": "Panel not found"}), 404
+
+    images = []
+    for folder in ["evenness", "neatness"]:
+        folder_path = os.path.join(panel_path, folder)
+        if os.path.isdir(folder_path):
+            for filename in sorted(os.listdir(folder_path)):
+                if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
+                    images.append({"folder": folder, "filename": filename})
+
+    return jsonify({"panel": panel, "images": images})
+
+
+@app.route("/panel-image/<panel>/<folder>/<filename>")
+def panel_image(panel, folder, filename):
+    """Serve a specific image from a panel's evenness or neatness subfolder."""
+    if not re.match(r'^panel\d+$', panel, re.IGNORECASE):
+        return "Invalid panel", 400
+    if folder not in ["evenness", "neatness"]:
+        return "Invalid folder", 400
+    if not re.match(r'^[\w\-\.]+$', filename):
+        return "Invalid filename", 400
+
+    image_path = os.path.join(LOGS_DIR, panel, folder, filename)
+    if not os.path.isfile(image_path):
+        return "Image not found", 404
+
+    return send_file(image_path)
+
+
+@app.route("/update-panel-csv", methods=["POST"])
+def update_panel_csv():
+    """Update a single field's value in a panel's CSV.
+    The table displays column *sums*; we apply the delta to the first data row
+    so the new sum equals the requested new_value."""
+    try:
+        data      = request.json or {}
+        panel     = data.get("panel", "")
+        field     = data.get("field", "")
+        new_value = float(data.get("value", 0))
+
+        if not re.match(r'^panel\d+$', panel, re.IGNORECASE):
+            return jsonify({"error": "Invalid panel"}), 400
+
+        EVENNESS_MAP = {
+            "EV1": "v1_Count",
+            "EV2": "v2_Count",
+            "EV3": "v3_Count",
+        }
+        NEATNESS_MAP = {
+            "Super Major": "Cleanliness_supermajor",
+            "Major":       "Cleanliness_major",
+            "Minor":       "Cleanliness_minor",
+        }
+
+        panel_path = os.path.join(LOGS_DIR, panel)
+
+        if field in EVENNESS_MAP:
+            csv_col  = EVENNESS_MAP[field]
+            csv_path = os.path.join(panel_path, "evenness.csv")
+        elif field in NEATNESS_MAP:
+            csv_col  = NEATNESS_MAP[field]
+            csv_path = os.path.join(panel_path, "neatness_cleanness.csv")
+        else:
+            return jsonify({"error": f"Field '{field}' is not editable"}), 400
+
+        if not os.path.isfile(csv_path):
+            return jsonify({"error": "CSV file not found"}), 404
+
+        # Read CSV
+        with open(csv_path, newline="", encoding="utf-8") as f:
+            reader    = csv.DictReader(f)
+            rows      = list(reader)
+            fieldnames = reader.fieldnames
+
+        if not rows:
+            return jsonify({"error": "CSV file is empty"}), 400
+
+        # Calculate current column total and the required delta
+        current_total = sum(float(r.get(csv_col, 0) or 0) for r in rows)
+        delta         = new_value - current_total
+
+        # Apply delta to the first data row
+        first_val         = float(rows[0].get(csv_col, 0) or 0)
+        rows[0][csv_col]  = str(round(first_val + delta, 6))
+
+        # Write back
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+
+        return jsonify({"status": "updated", "panel": panel, "field": field, "newTotal": new_value})
+
+    except Exception as e:
+        print("Error in /update-panel-csv:", str(e))
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 # ── Error handlers ────────────────────────────────────────────────
 @app.errorhandler(404)
 def not_found(e):
